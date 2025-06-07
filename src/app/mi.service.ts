@@ -8,6 +8,13 @@ interface SavedCredentials {
   country: string
 }
 
+// Define the SavedCommand type
+export interface SavedCommand {
+  name: string
+  method: string
+  params: string
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -36,7 +43,6 @@ export class MiService {  login(creds: { email: string; password: string; countr
   isSessionRestored() {
     return invoke<boolean>('is_session_restored')
   }
-
   setCountry(country: string) {
     return invoke('set_country', { country })
   }
@@ -73,8 +79,22 @@ export class MiService {  login(creds: { email: string; password: string; countr
     const params = JSON.stringify([name, value])
     return this.callDevice({ did, method: 'set_ps', params })
   }
-
   getSavedCredentials() {
     return invoke<SavedCredentials | null>('get_saved_credentials')
+  }
+  saveCommand(name: string, method: string, params: string) {
+    return invoke('save_command', { name, method, params })
+  }
+
+  updateCommand(name: string, method: string, params: string) {
+    return invoke('update_command', { name, method, params })
+  }
+
+  deleteCommand(name: string) {
+    return invoke('delete_command', { name })
+  }
+
+  getSavedCommands() {
+    return invoke<SavedCommand[]>('get_saved_commands')
   }
 }

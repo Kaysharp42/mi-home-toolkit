@@ -21,6 +21,20 @@ struct SavedCredentials {
     country: String,
 }
 
+// Struct for saved commands
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct SavedCommand {
+    name: String,
+    method: String,
+    params: String,
+}
+
+// Struct for the commands JSON file
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct SavedCommands {
+    commands: Vec<SavedCommand>,
+}
+
 lazy_static! {
     static ref MI_CLOUD_PROTOCOL: Arc<Mutex<MiCloudProtocol>> =
         Arc::new(Mutex::new(MiCloudProtocol::new()));
@@ -48,6 +62,18 @@ fn get_credentials_path(app_handle: &AppHandle) -> PathBuf {
     }
     
     app_dir.join("credentials.json")
+}
+
+// Get the config file path for storing saved commands
+fn get_commands_path(app_handle: &AppHandle) -> PathBuf {
+    let app_dir = app_handle.path().app_data_dir().expect("Failed to get app data dir");
+    
+    // Create the directory if it doesn't exist
+    if !app_dir.exists() {
+        fs::create_dir_all(&app_dir).expect("Failed to create config directory");
+    }
+    
+    app_dir.join("saved_commands.json")
 }
 
 // Save secure session (without password) to a file
@@ -125,6 +151,71 @@ fn load_credentials(app_handle: &AppHandle) -> Option<SavedCredentials> {
     }
 }
 
+// Save command to the commands file
+fn save_command_to_file(app_handle: &AppHandle, command: &SavedCommand, update_if_exists: bool) -> Result<(), String> {
+    let path = get_commands_path(app_handle);
+    
+    // Load existing commands or create new list
+    let mut saved_commands = load_all_commands(app_handle).unwrap_or(SavedCommands { commands: vec![] });
+    
+    // Check if command name already exists
+    if let Some(existing_index) = saved_commands.commands.iter().position(|c| c.name == command.name) {
+        if update_if_exists {
+            // Update existing command
+            saved_commands.commands[existing_index] = command.clone();
+        } else {
+            return Err(format!("Command with name '{}' already exists", command.name));
+        }
+    } else {
+        // Add new command
+        saved_commands.commands.push(command.clone());
+    }
+    
+    // Save to file
+    let json = serde_json::to_string_pretty(&saved_commands).map_err(|e| e.to_string())?;
+    fs::write(&path, &json).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+// Delete command from the commands file
+fn delete_command_from_file(app_handle: &AppHandle, command_name: &str) -> Result<(), String> {
+    let path = get_commands_path(app_handle);
+    
+    // Load existing commands
+    let mut saved_commands = load_all_commands(app_handle).unwrap_or(SavedCommands { commands: vec![] });
+    
+    // Find and remove the command
+    let original_len = saved_commands.commands.len();
+    saved_commands.commands.retain(|c| c.name != command_name);
+    
+    if saved_commands.commands.len() == original_len {
+        return Err(format!("Command with name '{}' not found", command_name));
+    }
+    
+    // Save to file
+    let json = serde_json::to_string_pretty(&saved_commands).map_err(|e| e.to_string())?;
+    fs::write(&path, &json).map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+// Load all commands from the commands file
+fn load_all_commands(app_handle: &AppHandle) -> Option<SavedCommands> {
+    let path = get_commands_path(app_handle);
+    if !path.exists() {
+        return None;
+    }
+    
+    match fs::read_to_string(path) {
+        Ok(json) => match serde_json::from_str(&json) {
+            Ok(commands) => Some(commands),
+            Err(_) => None,
+        },
+        Err(_) => None,
+    }
+}
+
 // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
 #[tauri::command]
 async fn login(
@@ -164,9 +255,16 @@ async fn get_countries() -> Vec<Vec<&'static str>> {
 }
 
 #[tauri::command]
-async fn set_country(country: String) {
+async fn set_country(app_handle: AppHandle, country: String) -> Result<(), String> {
     let mut guard = MI_CLOUD_PROTOCOL.lock().await;
-    guard.set_country(&country)
+    guard.set_country(&country);
+    
+    // Save the updated session with new country
+    if let Some(secure_session) = guard.export_secure_session() {
+        save_secure_session(&app_handle, &secure_session)?;
+    }
+    
+    Ok(())
 }
 
 #[tauri::command]
@@ -310,6 +408,38 @@ async fn is_session_restored() -> bool {
     guard.is_session_valid()
 }
 
+#[tauri::command]
+async fn save_command(app_handle: AppHandle, name: String, method: String, params: String) -> Result<(), String> {
+    let command = SavedCommand {
+        name,
+        method,
+        params,
+    };
+    save_command_to_file(&app_handle, &command, false)
+}
+
+#[tauri::command]
+async fn update_command(app_handle: AppHandle, name: String, method: String, params: String) -> Result<(), String> {
+    let command = SavedCommand {
+        name,
+        method,
+        params,
+    };
+    save_command_to_file(&app_handle, &command, true)
+}
+
+#[tauri::command]
+async fn delete_command(app_handle: AppHandle, name: String) -> Result<(), String> {
+    delete_command_from_file(&app_handle, &name)
+}
+
+#[tauri::command]
+async fn get_saved_commands(app_handle: AppHandle) -> Vec<SavedCommand> {
+    load_all_commands(&app_handle)
+        .map(|commands| commands.commands)
+        .unwrap_or_default()
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(
@@ -335,7 +465,11 @@ fn main() {
             logout,
             get_saved_credentials,
             get_current_user,
-            is_session_restored
+            is_session_restored,
+            save_command,
+            update_command,
+            delete_command,
+            get_saved_commands
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

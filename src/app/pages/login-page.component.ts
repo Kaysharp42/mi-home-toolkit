@@ -13,11 +13,22 @@ import { injectMutation } from '@tanstack/angular-query-experimental'
 import { MiService } from '../mi.service'
 
 @Component({
-  template: `<form
-    class="flex flex-col gap-2 w-80"
-    (ngSubmit)="login($event)"
-    [formGroup]="form"
-  >
+  template: `
+    <div class="relative">
+      @if (loading()) {
+        <div class="absolute inset-0 z-10 flex items-center justify-center bg-base-100 bg-opacity-80 rounded-lg">
+          <div class="flex flex-col items-center gap-2">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <span class="text-sm">Connecting to server...</span>
+          </div>
+        </div>
+      }
+      
+      <form
+        class="flex flex-col gap-2 w-80"
+        (ngSubmit)="login($event)"
+        [formGroup]="form"
+      >
     <label class="input flex items-center gap-2">
       <span class="label"><app-icon icon="email" class="w-4 h-4" /></span>
       <input [formControlName]="'email'" type="text" placeholder="Login" />
@@ -44,16 +55,19 @@ import { MiService } from '../mi.service'
         <input type="checkbox" [formControlName]="'saveCredentials'" class="checkbox" />
         <span class="label-text ml-2">Remember me</span>
       </label>
-    </div>
-
+    </div>    
     <button
       [disabled]="form.invalid || loading()"
       type="submit"
       class="btn w-full"
     >
-      <app-icon *ngIf="!loading()" icon="login" class="w-4 h-4" />
-      <span *ngIf="loading()" class="loading loading-spinner loading-xs"></span>
-      Login
+      @if (loading()) {
+        <span class="loading loading-spinner loading-sm"></span>
+        Connecting...
+      } @else {
+        <app-icon icon="login" class="w-4 h-4" />
+        Login
+      }
     </button>
 
     @if (loginMutation.isError()) {
@@ -70,11 +84,12 @@ import { MiService } from '../mi.service'
             (click)="loginMutation.reset()"
           >
             ✕
-          </button>
+          </button>        
         </div>
       </div>
     }
-  </form>`,
+  </form>
+    </div>`,
   styles: `
     :host {
       display: flex;
