@@ -60,9 +60,9 @@ export class AuthService {
     this.user$.next(creds)
     return res
   }
-
   async logout() {
     await this.miService.logout();
     this.user$.next(null);
+    this.router.navigate(['/login']);
   }
 }

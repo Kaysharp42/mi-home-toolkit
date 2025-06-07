@@ -19,12 +19,12 @@ import { Device } from '../types'
 @Component({
   template: `
     <!-- Logout button -->
-    <div class="tooltip fixed right-4 top-4 z-1" data-tip="Logout">
+    <div class="tooltip tooltip-bottom fixed right-4 top-4 z-1" data-tip="Logout">
       <button
-        class="btn btn-circle btn-outline"
+        class="btn btn-circle btn-outline hover:border-red-500 hover:bg-red-50 hover:bg-opacity-20 group transition-all duration-200"
         (click)="logout()"
       >
-        <app-icon class="w-5 h-5" icon="login" style="transform: rotate(180deg)" />
+        <app-icon class="w-5 h-5 group-hover:text-red-600 transition-colors duration-200" icon="logout" />
       </button>
     </div>
     

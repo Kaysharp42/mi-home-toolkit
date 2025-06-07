@@ -5,4 +5,5 @@ export type Icon =
   | 'wifi_off'
   | 'refresh'
   | 'login'
+  | 'logout'
   | 'terminal'
