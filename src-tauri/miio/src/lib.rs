@@ -25,6 +25,29 @@ use std::{
     vec,
 };
 
+// Struct for saving/loading credentials (contains password)
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Credentials {
+    pub username: String,
+    pub password_md5: String,
+    pub ssecurity: String,
+    pub user_id: String,
+    pub country: String,
+    pub service_token: String,
+    pub client_id: String,
+}
+
+// Secure session struct for persistence (excludes password data)
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SecureSession {
+    pub username: String,
+    pub ssecurity: String,
+    pub user_id: String,
+    pub country: String,
+    pub service_token: String,
+    pub client_id: String,
+}
+
 fn parse_response_json(str: &str) -> serde_json::Result<Value> {
     let str = if str.starts_with("&&&START&&&") {
         &str[11..]
@@ -222,8 +245,7 @@ impl MiCloudProtocol {
         let (ssecurity, user_id, location) = self
             .login_step2(&client, username, password_md5.as_str(), &sign)
             .await?;
-        let service_token = self.login_step3(&client, location).await?;
-
+        let service_token = self.login_step3(&client, location).await?;        
         self.username = Some(username.to_string());
         self.password_md5 = Some(password_md5);
         self.ssecurity = Some(ssecurity);
@@ -231,6 +253,77 @@ impl MiCloudProtocol {
         self.service_token = Some(service_token);
 
         Ok(())
+    }
+
+    /// Exports current credentials for saving
+    pub fn export_credentials(&self) -> Option<Credentials> {
+        match (&self.username, &self.password_md5, &self.ssecurity, &self.user_id, &self.service_token) {
+            (Some(username), Some(password_md5), Some(ssecurity), Some(user_id), Some(service_token)) => {
+                Some(Credentials {
+                    username: username.clone(),
+                    password_md5: password_md5.clone(),
+                    ssecurity: ssecurity.clone(),
+                    user_id: user_id.clone(),
+                    country: self.country.clone(),
+                    service_token: service_token.clone(),
+                    client_id: self.client_id.clone(),
+                })
+            }
+            _ => None,
+        }
+    }    
+    /// Imports credentials from saved data
+    pub fn import_credentials(&mut self, credentials: Credentials) {
+        self.username = Some(credentials.username);
+        self.password_md5 = Some(credentials.password_md5);
+        self.ssecurity = Some(credentials.ssecurity);
+        self.user_id = Some(credentials.user_id);
+        self.country = credentials.country;
+        self.service_token = Some(credentials.service_token);
+        self.client_id = credentials.client_id;
+    }
+
+    /// Exports secure session data (excludes password)
+    pub fn export_secure_session(&self) -> Option<SecureSession> {
+        match (&self.username, &self.ssecurity, &self.user_id, &self.service_token) {
+            (Some(username), Some(ssecurity), Some(user_id), Some(service_token)) => {
+                Some(SecureSession {
+                    username: username.clone(),
+                    ssecurity: ssecurity.clone(),
+                    user_id: user_id.clone(),
+                    country: self.country.clone(),
+                    service_token: service_token.clone(),
+                    client_id: self.client_id.clone(),
+                })
+            }
+            _ => None,
+        }
+    }
+
+    pub fn import_secure_session(&mut self, session: SecureSession) {
+        self.username = Some(session.username);
+        self.ssecurity = Some(session.ssecurity);
+        self.user_id = Some(session.user_id);
+        self.country = session.country;
+        self.service_token = Some(session.service_token);
+        self.client_id = session.client_id;
+    }
+
+    /// Check if session is valid for API calls
+    pub fn is_session_valid(&self) -> bool {
+        self.username.is_some() && 
+        self.ssecurity.is_some() && 
+        self.user_id.is_some() && 
+        self.service_token.is_some()
+    }
+
+    /// Check if the user is logged in
+    pub fn is_logged_in(&self) -> bool {
+        self.username.is_some() && 
+        self.password_md5.is_some() && 
+        self.ssecurity.is_some() && 
+        self.user_id.is_some() && 
+        self.service_token.is_some()
     }
 
     pub fn is_country_supported(&self, country: &str) -> bool {
@@ -651,3 +744,4 @@ mod tests {
         mi.get_devices(None, None).await.unwrap();
     }
 }
+

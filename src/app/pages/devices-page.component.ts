@@ -6,6 +6,7 @@ import {
   signal,
   viewChildren,
 } from '@angular/core'
+import { Router } from '@angular/router'
 import { DeviceComponent } from '../card/device.component'
 import { MiService } from '../mi.service'
 import { IconComponent } from '../icon/icon.component'
@@ -17,6 +18,16 @@ import { Device } from '../types'
 
 @Component({
   template: `
+    <!-- Logout button -->
+    <div class="tooltip fixed right-4 top-4 z-1" data-tip="Logout">
+      <button
+        class="btn btn-circle btn-outline"
+        (click)="logout()"
+      >
+        <app-icon class="w-5 h-5" icon="login" style="transform: rotate(180deg)" />
+      </button>
+    </div>
+    
     <div class="tooltip fixed right-4 bottom-4 z-1" data-tip="Refresh">
       <button
         class="btn btn-circle btn-outline"
@@ -86,6 +97,7 @@ export class DevicesPageComponent {
 
   miService = inject(MiService)
   authService = inject(AuthService)
+  router = inject(Router)
 
   deviceComponents = viewChildren(DeviceComponent)
 
@@ -101,6 +113,11 @@ export class DevicesPageComponent {
     if (!user?.country) return null
     return this.miService.countryCodeToName().get(user.country)
   })
+
+  async logout() {
+    await this.authService.logout();
+    this.router.navigateByUrl('/');
+  }
 
   invalidateDevice() {
     const did = this.executeCommandForDevice()?.did

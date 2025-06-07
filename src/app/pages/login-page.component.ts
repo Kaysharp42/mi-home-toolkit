@@ -30,8 +30,7 @@ import { MiService } from '../mi.service'
         type="password"
         placeholder="Password"
       />
-    </label>
-
+    </label>    
     <select class="select" [formControlName]="'country'">
       <option disabled>Server location</option>
       <option *ngFor="let country of countries()" [value]="country[0]">
@@ -39,6 +38,13 @@ import { MiService } from '../mi.service'
       </option>
       <option disabled>If not listed, try matching from above</option>
     </select>
+    
+    <div class="form-control">
+      <label class="label cursor-pointer justify-start">
+        <input type="checkbox" [formControlName]="'saveCredentials'" class="checkbox" />
+        <span class="label-text ml-2">Remember me</span>
+      </label>
+    </div>
 
     <button
       [disabled]="form.invalid || loading()"
@@ -80,38 +86,55 @@ import { MiService } from '../mi.service'
   `,
   imports: [CommonModule, IconComponent, FormsModule, ReactiveFormsModule],
 })
-export class LoginPageComponent {
+export class LoginPageComponent {  
   fb = inject(FormBuilder)
   router = inject(Router)
   authService = inject(AuthService)
-  miService = inject(MiService)
+  miService = inject(MiService);
   loginMutation = injectMutation(() => ({
     mutationFn: (credentials: {
       email: string
       password: string
       country?: string
+      should_save_credentials: boolean
     }) => this.authService.login(credentials),
     onSuccess: () => this.router.navigateByUrl('devices'),
   }))
   loading = computed(() => this.loginMutation.isPending())
-
   countries = this.miService.countries.value
-
   form = this.fb.nonNullable.group({
     email: this.fb.nonNullable.control('', [Validators.required]),
     password: this.fb.nonNullable.control('', [Validators.required]),
     country: this.fb.nonNullable.control('cn', [Validators.required]),
+    saveCredentials: this.fb.nonNullable.control(true)
   })
-
+  constructor() {
+    // Try to fill the form with saved credentials if available
+    this.miService.getSavedCredentials().then((creds: { username: string; country: string } | null) => {
+      if (creds) {
+        this.form.patchValue({
+          email: creds.username,
+          country: creds.country,
+          password: '',
+          // Keep the "Remember me" checked by default since they previously chose to save
+          saveCredentials: true
+        });
+      }
+    }).catch((err: Error) => console.error('Error loading saved credentials:', err));
+  }
   disabledFormEffect = effect(() =>
     this.loading() ? this.form.disable() : this.form.enable()
-  )
-
-  async login(event: SubmitEvent) {
+  );  
+    async login(event: SubmitEvent) {
     event.preventDefault()
     if (this.form.invalid) return
-    const { email, password, country } = this.form.value
+    const { email, password, country, saveCredentials } = this.form.value
     if (!email || !password) return
-    this.loginMutation.mutate({ email, password, country })
+    this.loginMutation.mutate({ 
+      email, 
+      password, 
+      country, 
+      should_save_credentials: saveCredentials ?? true 
+    })
   }
 }
