@@ -7,10 +7,11 @@
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist/mi-home-toolkit/browser"
-  },
+  },  
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "Mi Home Toolkit",
         "width": 800,
         "height": 600

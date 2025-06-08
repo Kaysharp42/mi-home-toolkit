@@ -1,6 +1,8 @@
-import { Component, inject } from '@angular/core'
+import { Component, inject, ViewChild } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { ConfigService } from './config.service'
+import { ClosePreferenceDialogComponent } from './dialogs/close-preference-dialog/close-preference-dialog.component'
+import { listen } from '@tauri-apps/api/event'
 
 @Component({
   selector: 'app-root',
@@ -9,10 +11,12 @@ import { ConfigService } from './config.service'
       display: block;
     }
   `,
-  imports: [RouterModule],
+  imports: [RouterModule, ClosePreferenceDialogComponent],
   templateUrl: './app.component.html',
 })
 export class AppComponent {
+  @ViewChild(ClosePreferenceDialogComponent) closePreferenceDialog!: ClosePreferenceDialogComponent
+  
   configService = inject(ConfigService)
 
   constructor() {
@@ -21,5 +25,18 @@ export class AppComponent {
         .getElementsByTagName('html')[0]
         .setAttribute('data-theme', systemTheme)
     })
+
+    // Listen for the show-close-preference-dialog event from Tauri
+    this.setupTauriEventListeners()
+  }
+
+  private async setupTauriEventListeners() {
+    try {
+      await listen('show-close-preference-dialog', () => {
+        this.closePreferenceDialog?.show()
+      })
+    } catch (error) {
+      console.error('Failed to setup Tauri event listeners:', error)
+    }
   }
 }

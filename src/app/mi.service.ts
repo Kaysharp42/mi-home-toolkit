@@ -13,6 +13,7 @@ export interface SavedCommand {
   name: string
   method: string
   params: string
+  shortcut?: string
 }
 
 @Injectable({
@@ -81,17 +82,20 @@ export class MiService {  login(creds: { email: string; password: string; countr
   }
   getSavedCredentials() {
     return invoke<SavedCredentials | null>('get_saved_credentials')
-  }
-  saveCommand(name: string, method: string, params: string) {
-    return invoke('save_command', { name, method, params })
+  }  saveCommand(name: string, method: string, params: string, shortcut?: string) {
+    return invoke('save_command', { name, method, params, shortcut })
   }
 
-  updateCommand(name: string, method: string, params: string) {
-    return invoke('update_command', { name, method, params })
+  updateCommand(name: string, method: string, params: string, shortcut?: string) {
+    return invoke('update_command', { name, method, params, shortcut })
   }
 
   deleteCommand(name: string) {
     return invoke('delete_command', { name })
+  }
+
+  validateShortcut(shortcut: string) {
+    return invoke<boolean>('validate_shortcut', { shortcut })
   }
 
   getSavedCommands() {
