@@ -5,9 +5,9 @@ import { SettingsService, AppSettings } from '../../services/settings.service'
 
 @Component({
   selector: 'app-settings-dialog',
-  template: `
-    <dialog class="modal" app-dialog [visible]="visible()">
-      <div class="modal-box max-w-md">
+  template: `    
+  <dialog class="modal" app-dialog [visible]="visible()">
+      <div class="modal-box max-w-2xl w-full">
         <h3 class="font-bold text-lg mb-4">Application Settings</h3>
         
         <div class="mb-6">

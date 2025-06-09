@@ -12,6 +12,10 @@ A versatile tool for managing Mi Home smart devices.
 - View device information, such as `token`, `ip`, `did`
 - Enable LAN mode for bulbs
 - Execute device commands
+- Remember login credentials across sessions
+- Save frequently used commands
+- Execute commands with keyboard shortcuts
+- Auto-start on Windows startup and minimize to tray
 
 ## Usage
 
