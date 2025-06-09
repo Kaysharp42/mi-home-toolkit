@@ -1,17 +1,16 @@
 {
   "productName": "Mi Home Toolkit",
-  "version": "1.3.0-dev",
+  "version": "1.3.0",
   "identifier": "com.mi-home-toolkit",
   "build": {
     "beforeDevCommand": "pnpm start",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist/mi-home-toolkit/browser"
-  },  
+  },
   "app": {
     "windows": [
       {
-        "label": "main",
         "title": "Mi Home Toolkit",
         "width": 800,
         "height": 600
