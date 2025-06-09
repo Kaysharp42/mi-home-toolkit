@@ -2,6 +2,7 @@ import { Component, inject, ViewChild } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { ConfigService } from './config.service'
 import { ClosePreferenceDialogComponent } from './dialogs/close-preference-dialog/close-preference-dialog.component'
+import { SettingsDialogComponent } from './dialogs/settings-dialog/settings-dialog.component'
 import { listen } from '@tauri-apps/api/event'
 
 @Component({
@@ -11,7 +12,7 @@ import { listen } from '@tauri-apps/api/event'
       display: block;
     }
   `,
-  imports: [RouterModule, ClosePreferenceDialogComponent],
+  imports: [RouterModule, ClosePreferenceDialogComponent, SettingsDialogComponent],
   templateUrl: './app.component.html',
 })
 export class AppComponent {

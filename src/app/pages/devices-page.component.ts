@@ -4,6 +4,7 @@ import {
   computed,
   inject,
   signal,
+  viewChild,
   viewChildren,
 } from '@angular/core'
 import { Router } from '@angular/router'
@@ -12,20 +13,34 @@ import { MiService } from '../mi.service'
 import { IconComponent } from '../icon/icon.component'
 import { AuthService } from '../auth.service'
 import { SetCountryDialogComponent } from '../dialogs/set-country-dialog/set-country-dialog.component'
+import { SettingsDialogComponent } from '../dialogs/settings-dialog/settings-dialog.component'
 import { injectQuery } from '@tanstack/angular-query-experimental'
 import { ExecuteCommandDialogComponent } from '../dialogs/execute-command-dialog/execute-command-dialog.component'
 import { Device } from '../types'
 
 @Component({
   template: `
-    <!-- Logout button -->
-    <div class="tooltip tooltip-bottom fixed right-4 top-4 z-1" data-tip="Logout">
-      <button
-        class="btn btn-circle btn-outline hover:border-red-500 hover:bg-red-50 hover:bg-opacity-20 group transition-all duration-200"
-        (click)="logout()"
-      >
-        <app-icon class="w-5 h-5 group-hover:text-red-600 transition-colors duration-200" icon="logout" />
-      </button>
+    <!-- Top right buttons -->
+    <div class="fixed right-4 top-4 z-1 flex gap-2">
+      <!-- Settings button -->
+      <div class="tooltip tooltip-bottom" data-tip="Settings">
+        <button
+          class="btn btn-circle btn-outline hover:border-blue-500 hover:bg-blue-50 hover:bg-opacity-20 group transition-all duration-200"
+          (click)="openSettings()"
+        >
+          <app-icon class="w-5 h-5 group-hover:text-blue-600 transition-colors duration-200" icon="settings" />
+        </button>
+      </div>
+      
+      <!-- Logout button -->
+      <div class="tooltip tooltip-bottom" data-tip="Logout">
+        <button
+          class="btn btn-circle btn-outline hover:border-red-500 hover:bg-red-50 hover:bg-opacity-20 group transition-all duration-200"
+          (click)="logout()"
+        >
+          <app-icon class="w-5 h-5 group-hover:text-red-600 transition-colors duration-200" icon="logout" />
+        </button>
+      </div>
     </div>
     
     <div class="tooltip fixed right-4 bottom-4 z-1" data-tip="Refresh">
@@ -70,24 +85,26 @@ import { Device } from '../types'
           }
         </div>
       }
-    </div>
-
+    </div>    
     <app-set-country-dialog
       [(visible)]="changeCountryDialogVisible"
       (countryChanged)="devicesQuery.refetch()"
     />
+
+    <app-settings-dialog />
 
     <app-execute-command-dialog
       [(device)]="executeCommandForDevice"
       (success)="invalidateDevice()"
     />
   `,
-  styles: [``],
+  styles: [``],  
   imports: [
     CommonModule,
     DeviceComponent,
     IconComponent,
     SetCountryDialogComponent,
+    SettingsDialogComponent,
     ExecuteCommandDialogComponent,
   ],
 })
@@ -100,6 +117,7 @@ export class DevicesPageComponent {
   router = inject(Router)
 
   deviceComponents = viewChildren(DeviceComponent)
+  settingsDialog = viewChild(SettingsDialogComponent)
 
   devicesQuery = injectQuery(() => ({
     queryKey: ['devices'],
@@ -117,6 +135,10 @@ export class DevicesPageComponent {
   async logout() {
     await this.authService.logout();
     this.router.navigateByUrl('/');
+  }
+
+  openSettings() {
+    this.settingsDialog()?.show();
   }
 
   invalidateDevice() {

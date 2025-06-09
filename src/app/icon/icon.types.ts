@@ -7,3 +7,4 @@ export type Icon =
   | 'login'
   | 'logout'
   | 'terminal'
+  | 'settings'

@@ -41,4 +41,3 @@ testem.log
 .DS_Store
 Thumbs.db
 src-tauri/Cargo.lock
-src-tauri/Cargo.lock

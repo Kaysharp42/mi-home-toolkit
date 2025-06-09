@@ -14,6 +14,7 @@ use std::{fs, path::PathBuf};
 use tauri::{Emitter, Manager, AppHandle, WindowEvent, tray::{TrayIconBuilder, MouseButton}, menu::{MenuBuilder, MenuItem}};
 use tauri_plugin_log::{Builder, Target, TargetKind};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutWrapper};
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tokio::sync::Mutex;
 use lazy_static::lazy_static;
 
@@ -47,6 +48,8 @@ struct SavedCommands {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct AppSettings {
     close_to_tray: Option<bool>,
+    auto_start: Option<bool>,
+    auto_hide_to_tray: Option<bool>,
 }
 
 // Get the config file path for storing session credentials
@@ -240,15 +243,27 @@ fn load_all_commands(app_handle: &AppHandle) -> Option<SavedCommands> {
 fn load_app_settings(app_handle: &AppHandle) -> AppSettings {
     let path = get_settings_path(app_handle);
     if !path.exists() {
-        return AppSettings { close_to_tray: None };
+        return AppSettings { 
+            close_to_tray: None,
+            auto_start: None,
+            auto_hide_to_tray: None,
+        };
     }
     
     match fs::read_to_string(path) {
         Ok(json) => match serde_json::from_str(&json) {
             Ok(settings) => settings,
-            Err(_) => AppSettings { close_to_tray: None },
+            Err(_) => AppSettings { 
+                close_to_tray: None,
+                auto_start: None,
+                auto_hide_to_tray: None,
+            },
         },
-        Err(_) => AppSettings { close_to_tray: None },
+        Err(_) => AppSettings { 
+            close_to_tray: None,
+            auto_start: None,
+            auto_hide_to_tray: None,
+        },
     }
 }
 
@@ -464,7 +479,7 @@ async fn save_command(app_handle: AppHandle, name: String, method: String, param
         let cmd_clone = command.clone();
         println!("Attempting to register shortcut: {}", sc);
         
-        // Convert the shortcut string to a ShortcutWrapper
+        // Convert the shortcut to a ShortcutWrapper
         match sc.as_str().try_into() {
             Ok(shortcut_str_parsed) => {
                 let shortcut: ShortcutWrapper = shortcut_str_parsed;
@@ -633,6 +648,54 @@ async fn save_close_to_tray_preference(app_handle: AppHandle, close_to_tray: boo
     save_app_settings(&app_handle, &settings)
 }
 
+#[tauri::command]
+async fn save_auto_start_preference(app_handle: AppHandle, auto_start: bool) -> Result<(), String> {
+    let mut settings = load_app_settings(&app_handle);
+    settings.auto_start = Some(auto_start);
+      // Enable/disable autostart using the plugin
+    if auto_start {
+        // Enable autostart
+        app_handle.autolaunch().enable().map_err(|e| format!("Failed to enable autostart: {}", e))?;
+    } else {
+        // Disable autostart
+        app_handle.autolaunch().disable().map_err(|e| format!("Failed to disable autostart: {}", e))?;
+    }
+    
+    save_app_settings(&app_handle, &settings)
+}
+
+#[tauri::command]
+async fn save_auto_hide_preference(app_handle: AppHandle, auto_hide: bool) -> Result<(), String> {
+    let mut settings = load_app_settings(&app_handle);
+    settings.auto_hide_to_tray = Some(auto_hide);
+    save_app_settings(&app_handle, &settings)
+}
+
+#[tauri::command]
+async fn save_all_settings(app_handle: AppHandle, close_to_tray: Option<bool>, auto_start: Option<bool>, auto_hide_to_tray: Option<bool>) -> Result<(), String> {
+    let mut settings = load_app_settings(&app_handle);
+    
+    if let Some(ctt) = close_to_tray {
+        settings.close_to_tray = Some(ctt);
+    }
+    
+    if let Some(ah) = auto_hide_to_tray {
+        settings.auto_hide_to_tray = Some(ah);
+    }
+    
+    if let Some(as_val) = auto_start {
+        settings.auto_start = Some(as_val);
+          // Enable/disable autostart using the plugin
+        if as_val {
+            app_handle.autolaunch().enable().map_err(|e| format!("Failed to enable autostart: {}", e))?;
+        } else {
+            app_handle.autolaunch().disable().map_err(|e| format!("Failed to disable autostart: {}", e))?;
+        }
+    }
+    
+    save_app_settings(&app_handle, &settings)
+}
+
 // Execute a saved command from a shortcut
 async fn execute_saved_command(command: &SavedCommand) -> Result<(), String> {
     // Get the current user and check if logged in
@@ -708,6 +771,7 @@ fn register_saved_shortcuts(app_handle: &AppHandle) {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_autostart::init(MacosLauncher::LaunchAgent, Some(vec!["--minimized"])))
         .plugin(
             Builder::new()
                 .targets([
@@ -722,6 +786,15 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             let app_handle = app.handle().clone();
+            
+            // Check if we should auto-hide to tray on startup
+            let settings = load_app_settings(&app_handle);
+            if settings.auto_hide_to_tray == Some(true) {
+                // Hide the main window on startup
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.hide();
+                }
+            }
             
             // Register saved command shortcuts
             register_saved_shortcuts(&app_handle);            
@@ -811,7 +884,10 @@ fn main() {
             get_saved_commands,
             validate_shortcut,
             get_app_settings,
-            save_close_to_tray_preference
+            save_close_to_tray_preference,
+            save_auto_start_preference,
+            save_auto_hide_preference,
+            save_all_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
